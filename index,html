@@ -270,7 +270,14 @@
                         <li class="pl-4 text-slate-400">・Public directory: <code class="text-amber-300">.</code> (カレントディレクトリ)</li>
                         <li class="pl-4 text-slate-400">・Single-page app: <code class="text-amber-300">y</code></li>
                         <li>Web上に公開: <code class="text-indigo-300">firebase deploy</code></li>
-                    </ol>
+            const firebaseConfig = {
+  apiKey: "AIzaSyCkuzJbnf4DF9ImRmCCnjwV9vvPLFHgGbQ",
+  authDomain: "tasuku2-199b1.firebaseapp.com",
+  projectId: "tasuku2-199b1",
+  storageBucket: "tasuku2-199b1.firebasestorage.app",
+  messagingSenderId: "1002753320646",
+  appId: "1:1002753320646:web:17a567f489f60b9bbc59c7"
+};
                 </div>
             </div>
         </section>
