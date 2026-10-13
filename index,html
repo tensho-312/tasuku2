@@ -14,55 +14,98 @@
         body {
             font-family: 'Noto Sans JP', 'Inter', sans-serif;
         }
-        [v-cloak] { display: none; }
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
         }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
 
+    <!-- カスタム トースト通知 (alert不要の通知バー) -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform -translate-y-24 opacity-0 transition-all duration-300 max-w-md w-full bg-slate-900 text-white p-4 rounded-xl shadow-2xl flex items-start space-x-3 border border-slate-700 pointer-events-none">
+        <div id="toast-icon" class="text-xl mt-0.5 text-indigo-400">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="flex-grow">
+            <h4 id="toast-title" class="font-bold text-sm">通知</h4>
+            <p id="toast-message" class="text-xs text-slate-300 mt-0.5 leading-relaxed"></p>
+        </div>
+        <button onclick="hideToast()" class="text-slate-400 hover:text-white text-sm p-1">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- カスタム 確認モーダル (confirm不要の確認画面) -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center animate-fade-in">
+            <div id="confirm-modal-icon" class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="confirm-modal-title" class="text-lg font-bold text-slate-800 mb-2">確認</h3>
+            <p id="confirm-modal-message" class="text-slate-600 text-xs mb-6 leading-relaxed">この操作を実行しますか？</p>
+            <div class="flex space-x-3">
+                <button id="confirm-modal-cancel" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-xl text-xs transition">キャンセル</button>
+                <button id="confirm-modal-ok" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-xl text-xs shadow transition">実行する</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ヘッダー -->
     <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="p-2 bg-indigo-600 rounded-lg">
+                <div class="p-2 bg-indigo-600 rounded-lg shadow-inner">
                     <i class="fa-solid fa-book-bookmark text-xl text-amber-300"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">学校図書室 管理システム</h1>
-                    <p class="text-xs text-indigo-200 hidden sm:block">貸出・返却 リアルタイム管理アプリ</p>
+                    <h1 class="font-bold text-base sm:text-lg leading-tight">学校図書室 管理システム</h1>
+                    <p class="text-[11px] text-indigo-200 hidden sm:block">リアルタイム貸出・返却データベース</p>
                 </div>
             </div>
 
-            <!-- ユーザー情報 & ログアウトボタン（ログイン時表示） -->
-            <div id="user-profile" class="hidden flex items-center space-x-3">
-                <div class="flex items-center space-x-2 bg-indigo-800/60 px-3 py-1.5 rounded-full border border-indigo-500/30">
-                    <img id="user-avatar" src="" alt="Avatar" class="w-7 h-7 rounded-full border border-white">
-                    <span id="user-name" class="text-xs sm:text-sm font-medium max-w-[120px] sm:max-w-[180px] truncate"></span>
+            <!-- ステータス ＆ ユーザープロフ -->
+            <div class="flex items-center space-x-3">
+                <div id="connection-status" class="text-[10px] sm:text-xs px-2.5 py-1 rounded-full bg-indigo-900/60 border border-indigo-400/30 flex items-center space-x-1.5 text-indigo-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="status-text">オンライン</span>
                 </div>
-                <button id="btn-logout" class="bg-indigo-800 hover:bg-rose-600 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg font-medium transition flex items-center space-x-1 shadow-sm">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span class="hidden sm:inline">ログアウト</span>
-                </button>
+
+                <div id="user-profile" class="hidden flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 bg-indigo-800/60 px-2.5 py-1 rounded-full border border-indigo-500/30">
+                        <img id="user-avatar" src="" alt="Avatar" class="w-6 h-6 rounded-full border border-white">
+                        <span id="user-name" class="text-xs font-medium max-w-[100px] sm:max-w-[140px] truncate"></span>
+                    </div>
+                    <button id="btn-logout" class="bg-indigo-800 hover:bg-rose-600 text-white text-xs px-2.5 py-1.5 rounded-lg transition flex items-center space-x-1 shadow-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">ログアウト</span>
+                    </button>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- ログイン未認証画面 (保護用モーダル/画面) -->
+    <!-- 認証（ログイン）画面 -->
     <section id="auth-screen" class="flex-grow flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 text-center transition-all">
-            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600 shadow-inner">
-                <i class="fa-solid fa-user-lock text-3xl"></i>
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200/80 p-6 sm:p-8 text-center transition-all">
+            <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-5 text-indigo-600 shadow-inner">
+                <i class="fa-solid fa-user-shield text-2xl"></i>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">ログインが必要です</h2>
-            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
-                本アプリは学校図書室関係者専用です。<br>Googleアカウントでログインしてご利用ください。
+            <h2 class="text-xl font-bold text-slate-800 mb-1">図書室管理ログイン</h2>
+            <p class="text-slate-500 text-xs mb-6 leading-relaxed">
+                関係者専用アプリです。Googleアカウントでログインしてご利用ください。
             </p>
-            
-            <button id="btn-google-login" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center space-x-3 group hover:border-slate-400">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
+
+            <!-- メインログインボタン -->
+            <button id="btn-google-login" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl shadow transition flex items-center justify-center space-x-3 group">
+                <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -71,70 +114,81 @@
                 <span>Google アカウントでログイン</span>
             </button>
 
-            <p class="text-xs text-slate-400 mt-6">
-                ※認証データはFirebase Authenticationによって安全に管理されます。
+            <!-- 設定未完了時のテスト用ボタン -->
+            <div class="relative my-5">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                <div class="relative flex justify-center text-[10px] uppercase"><span class="bg-white px-2 text-slate-400">または</span></div>
+            </div>
+
+            <button id="btn-demo-login" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-vial text-slate-500"></i>
+                <span>テスト用 デモログイン（Firebase設定前用）</span>
+            </button>
+
+            <p class="text-[11px] text-slate-400 mt-4 leading-relaxed">
+                ※Firebase Consoleの「Authentication」でGoogleログインを有効にしてご利用ください。
             </p>
         </div>
     </section>
 
-    <!-- メインコンテンツ (ログイン済みの時のみ表示) -->
-    <main id="app-screen" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <!-- メインコンテンツ (ログイン時表示) -->
+    <main id="app-screen" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in">
 
-        <!-- 統計サマリーカード -->
+        <!-- 統計サマリー -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg text-xl">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg text-lg">
                     <i class="fa-solid fa-book"></i>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-medium">総登録件数</p>
-                    <p id="stat-total" class="text-2xl font-bold text-slate-800">0</p>
+                    <p class="text-[11px] text-slate-500 font-medium">総登録件数</p>
+                    <p id="stat-total" class="text-xl font-bold text-slate-800">0</p>
                 </div>
             </div>
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                <div class="p-3 bg-amber-100 text-amber-600 rounded-lg text-xl">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg text-lg">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-medium">現在貸出中</p>
-                    <p id="stat-checkout" class="text-2xl font-bold text-amber-600">0</p>
+                    <p class="text-[11px] text-slate-500 font-medium">現在貸出中</p>
+                    <p id="stat-checkout" class="text-xl font-bold text-amber-600">0</p>
                 </div>
             </div>
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                <div class="p-3 bg-emerald-100 text-emerald-600 rounded-lg text-xl">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg text-lg">
                     <i class="fa-solid fa-circle-check"></i>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-medium">返却完了</p>
-                    <p id="stat-returned" class="text-2xl font-bold text-emerald-600">0</p>
+                    <p class="text-[11px] text-slate-500 font-medium">返却完了</p>
+                    <p id="stat-returned" class="text-xl font-bold text-emerald-600">0</p>
                 </div>
             </div>
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                <div class="p-3 bg-rose-100 text-rose-600 rounded-lg text-xl">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                <div class="p-3 bg-rose-50 text-rose-600 rounded-lg text-lg">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-medium">返却期限超過</p>
-                    <p id="stat-overdue" class="text-2xl font-bold text-rose-600">0</p>
+                    <p class="text-[11px] text-slate-500 font-medium">返却期限超過</p>
+                    <p id="stat-overdue" class="text-xl font-bold text-rose-600">0</p>
                 </div>
             </div>
         </div>
 
-        <!-- 登録フォーム＆ガイドグリッド -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- 登録フォーム ＆ データ表示エリア -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- 貸出・返却 記録入力フォーム（5項目） -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div class="flex items-center space-x-2 border-b border-slate-100 pb-4 mb-6">
-                    <i class="fa-solid fa-pen-to-square text-indigo-600 text-lg"></i>
-                    <h2 class="text-lg font-bold text-slate-800">新規貸出の記録 (5項目)</h2>
+            <!-- 貸出記録入力フォーム (指定の5項目) -->
+            <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center space-x-2 border-b border-slate-100 pb-3 mb-4">
+                    <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+                    <h2 class="text-base font-bold text-slate-800">新規貸出の記録 (5項目)</h2>
                 </div>
 
-                <form id="record-form" class="space-y-4">
-                    <!-- 項目1: 学年・組 -->
+                <form id="record-form" class="space-y-3.5">
+                    <!-- 1. 学年・組 -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">1. 学年・組 <span class="text-rose-500">*</span></label>
-                        <select id="input-grade-class" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">1. 学年・組 <span class="text-rose-500">*</span></label>
+                        <select id="input-grade-class" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                             <option value="">選択してください</option>
                             <option value="1年1組">1年1組</option>
                             <option value="1年2組">1年2組</option>
@@ -146,51 +200,51 @@
                         </select>
                     </div>
 
-                    <!-- 項目2: 氏名 -->
+                    <!-- 2. 氏名 -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">2. 借用者氏名 <span class="text-rose-500">*</span></label>
-                        <input type="text" id="input-borrower-name" placeholder="例: 山田 太郎" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">2. 借用者氏名 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="input-borrower-name" placeholder="例: 山田 太郎" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                     </div>
 
-                    <!-- 項目3: 図書名 -->
+                    <!-- 3. 図書名 -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">3. 本のタイトル・蔵書ID <span class="text-rose-500">*</span></label>
-                        <input type="text" id="input-book-title" placeholder="例: 走れメロス (ID: B-102)" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">3. 本のタイトル・蔵書ID <span class="text-rose-500">*</span></label>
+                        <input type="text" id="input-book-title" placeholder="例: 走れメロス (ID: B-102)" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                     </div>
 
-                    <!-- 項目4: 貸出日 -->
+                    <!-- 4. 貸出日 -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">4. 貸出日 <span class="text-rose-500">*</span></label>
-                        <input type="date" id="input-checkout-date" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">4. 貸出日 <span class="text-rose-500">*</span></label>
+                        <input type="date" id="input-checkout-date" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                     </div>
 
-                    <!-- 項目5: 返却予定日 -->
+                    <!-- 5. 返却予定日 -->
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">5. 返却予定日 <span class="text-rose-500">*</span></label>
-                        <input type="date" id="input-due-date" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">5. 返却予定日 <span class="text-rose-500">*</span></label>
+                        <input type="date" id="input-due-date" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                     </div>
 
-                    <button type="submit" id="btn-submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition duration-150 flex items-center justify-center space-x-2 mt-6">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>データを登録する</span>
+                    <button type="submit" id="btn-submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition duration-150 flex items-center justify-center space-x-2 mt-4">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="text-xs">データを登録する</span>
                     </button>
                 </form>
             </div>
 
             <!-- 一覧表示・検索テーブルエリア -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
                         <div class="flex items-center space-x-2">
-                            <i class="fa-solid fa-list-check text-indigo-600 text-lg"></i>
-                            <h2 class="text-lg font-bold text-slate-800">貸出記録一覧 (Firestore同期)</h2>
+                            <i class="fa-solid fa-list-check text-indigo-600"></i>
+                            <h2 class="text-base font-bold text-slate-800">貸出記録一覧</h2>
                         </div>
                         
                         <!-- 検索 & フィルター -->
                         <div class="flex items-center space-x-2">
-                            <div class="relative w-full sm:w-48">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                                <input type="text" id="search-query" placeholder="氏名・本で検索..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <div class="relative w-full sm:w-44">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                                <input type="text" id="search-query" placeholder="氏名・本で検索..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-7 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <select id="filter-status" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option value="all">すべての状態</option>
@@ -202,14 +256,14 @@
 
                     <!-- テーブル表示 -->
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs sm:text-sm">
+                        <table class="w-full text-left text-xs">
                             <thead>
                                 <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                                    <th class="py-3 px-3 font-semibold">借用者</th>
-                                    <th class="py-3 px-3 font-semibold">図書名</th>
-                                    <th class="py-3 px-3 font-semibold">貸出日 / 予定日</th>
-                                    <th class="py-3 px-3 font-semibold">ステータス</th>
-                                    <th class="py-3 px-3 font-semibold text-right">操作</th>
+                                    <th class="py-2.5 px-3 font-semibold">借用者</th>
+                                    <th class="py-2.5 px-3 font-semibold">図書名</th>
+                                    <th class="py-2.5 px-3 font-semibold">貸出日 / 予定日</th>
+                                    <th class="py-2.5 px-3 font-semibold">状態</th>
+                                    <th class="py-2.5 px-3 font-semibold text-right">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="records-list" class="divide-y divide-slate-100">
@@ -224,71 +278,57 @@
                     </div>
                 </div>
 
-                <!-- フッター説明 -->
-                <p class="text-xs text-slate-400 mt-4 border-t border-slate-100 pt-3">
-                    ※Firestoreデータベースに同期されるため、ページを再読み込みしてもデータは消えません。
+                <p class="text-[11px] text-slate-400 mt-4 border-t border-slate-100 pt-2.5">
+                    ※Firestoreデータベースに自動保存されます（再読み込みしても保持されます）。
                 </p>
             </div>
         </div>
 
-        <!-- デプロイ・公開案内ガイドカード -->
-        <section class="bg-slate-800 text-slate-100 p-6 sm:p-8 rounded-2xl shadow-md border border-slate-700">
-            <div class="flex items-center space-x-3 mb-4 border-b border-slate-700 pb-3">
-                <i class="fa-brands fa-github text-2xl text-indigo-400"></i>
-                <i class="fa-solid fa-fire text-2xl text-amber-500"></i>
-                <h3 class="text-lg font-bold">GitHub (`libraryapp`) & Firebase Hosting 公開の手順</h3>
+        <!-- 公開・GitHubガイド -->
+        <section class="bg-slate-800 text-slate-100 p-5 rounded-2xl shadow-md border border-slate-700">
+            <div class="flex items-center space-x-2 mb-3 border-b border-slate-700 pb-2.5">
+                <i class="fa-brands fa-github text-lg text-indigo-400"></i>
+                <i class="fa-solid fa-fire text-lg text-amber-500"></i>
+                <h3 class="text-sm font-bold">GitHub (`libraryapp`) & Firebase Hosting 公開の手順</h3>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div>
-                    <h4 class="font-bold text-amber-400 mb-2 flex items-center space-x-2">
-                        <span class="bg-amber-400/20 text-amber-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs">1</span>
-                        <span>GitHub リポジトリ作成 & アップロード</span>
+                    <h4 class="font-bold text-amber-400 mb-1.5 flex items-center space-x-1">
+                        <span>1. GitHubにリポジトリを作成して送信</span>
                     </h4>
-                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300 bg-slate-900/60 p-4 rounded-xl font-mono text-xs">
-                        <li>GitHubで <code class="text-amber-300">libraryapp</code> というリポジトリを作成</li>
-                        <li>ターミナルで本ファイルの保存場所に移動して実行:</li>
-                        <li class="pl-2 text-indigo-300">git init</li>
-                        <li class="pl-2 text-indigo-300">git add index.html</li>
-                        <li class="pl-2 text-indigo-300">git commit -m "Initial commit"</li>
-                        <li class="pl-2 text-indigo-300">git branch -M main</li>
-                        <li class="pl-2 text-indigo-300">git remote add origin https://github.com/ユーザー名/libraryapp.git</li>
-                        <li class="pl-2 text-indigo-300">git push -u origin main</li>
-                    </ol>
+                    <pre class="bg-slate-900/80 p-3 rounded-lg text-slate-300 font-mono text-[11px] overflow-x-auto">
+git init
+git add index.html
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/ユーザー名/libraryapp.git
+git push -u origin main</pre>
                 </div>
 
                 <div>
-                    <h4 class="font-bold text-amber-400 mb-2 flex items-center space-x-2">
-                        <span class="bg-amber-400/20 text-amber-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs">2</span>
-                        <span>Firebase Hosting でインターネット公開</span>
+                    <h4 class="font-bold text-amber-400 mb-1.5 flex items-center space-x-1">
+                        <span>2. Firebase Hostingでインターネット公開</span>
                     </h4>
-                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300 bg-slate-900/60 p-4 rounded-xl font-mono text-xs">
-                        <li>Firebase CLI をインストール: <code class="text-indigo-300">npm install -g firebase-tools</code></li>
-                        <li>Firebaseにログイン: <code class="text-indigo-300">firebase login</code></li>
-                        <li>プロジェクト初期化: <code class="text-indigo-300">firebase init hosting</code></li>
-                        <li class="pl-4 text-slate-400">・プロジェクト: tasuku2-199b1 を選択</li>
-                        <li class="pl-4 text-slate-400">・Public directory: <code class="text-amber-300">.</code> (カレントディレクトリ)</li>
-                        <li class="pl-4 text-slate-400">・Single-page app: <code class="text-amber-300">y</code></li>
-                        <li>Web上に公開: <code class="text-indigo-300">firebase deploy</code></li>
-            const firebaseConfig = {
-  apiKey: "AIzaSyCkuzJbnf4DF9ImRmCCnjwV9vvPLFHgGbQ",
-  authDomain: "tasuku2-199b1.firebaseapp.com",
-  projectId: "tasuku2-199b1",
-  storageBucket: "tasuku2-199b1.firebasestorage.app",
-  messagingSenderId: "1002753320646",
-  appId: "1:1002753320646:web:17a567f489f60b9bbc59c7"
-};
+                    <pre class="bg-slate-900/80 p-3 rounded-lg text-slate-300 font-mono text-[11px] overflow-x-auto">
+npm install -g firebase-tools
+firebase login
+firebase init hosting
+# プロジェクト: tasuku2-199b1 を選択
+# Public directory: .
+# Single-page app: y
+firebase deploy</pre>
                 </div>
             </div>
         </section>
     </main>
 
     <!-- フッター -->
-    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <p>&copy; 2026 学校図書室 貸出・返却管理システム | Powered by Firebase & GitHub</p>
+    <footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-400">
+        <p>&copy; 2026 学校図書室 貸出・返却管理システム | Firebase & GitHub Sync</p>
     </footer>
 
-    <!-- JS Firebase Logics -->
+    <!-- JS Firebase ＆ アプリロジック -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
@@ -310,20 +350,28 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // 指定された Firebase 設定
-        const firebaseConfig = {
-            apiKey: "AIzaSyCkuzJbnf4DF9ImRmCCnjwV9vvPLFHgGbQ",
-            authDomain: "tasuku2-199b1.firebaseapp.com",
-            projectId: "tasuku2-199b1",
-            storageBucket: "tasuku2-199b1.firebasestorage.app",
-            messagingSenderId: "1002753320646",
-            appId: "1:1002753320646:web:17a567f489f60b9bbc59c7"
-        };
+       const firebaseConfig = {
+  apiKey: "AIzaSyCkuzJbnf4DF9ImRmCCnjwV9vvPLFHgGbQ",
+  authDomain: "tasuku2-199b1.firebaseapp.com",
+  projectId: "tasuku2-199b1",
+  storageBucket: "tasuku2-199b1.firebasestorage.app",
+  messagingSenderId: "1002753320646",
+  appId: "1:1002753320646:web:17a567f489f60b9bbc59c7"
+};
 
-        // Firebaseの初期化
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+        // 安全なFirebase初期化
+        let app, auth, db, provider;
+        let isFirebaseAvailable = false;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            provider = new GoogleAuthProvider();
+            isFirebaseAvailable = true;
+        } catch (e) {
+            console.warn("Firebase initialization warning:", e);
+        }
 
         // UI要素参照
         const authScreen = document.getElementById("auth-screen");
@@ -331,8 +379,10 @@
         const userProfile = document.getElementById("user-profile");
         const userAvatar = document.getElementById("user-avatar");
         const userName = document.getElementById("user-name");
+        const statusText = document.getElementById("status-text");
 
         const btnGoogleLogin = document.getElementById("btn-google-login");
+        const btnDemoLogin = document.getElementById("btn-demo-login");
         const btnLogout = document.getElementById("btn-logout");
 
         const recordForm = document.getElementById("record-form");
@@ -351,55 +401,170 @@
         const statReturned = document.getElementById("stat-returned");
         const statOverdue = document.getElementById("stat-overdue");
 
-        // 日付の初期設定（貸出日：本日、返却予定日：14日後）
-        const today = new Date();
-        const defaultDue = new Date();
-        defaultDue.setDate(today.getDate() + 14);
-
-        inputCheckoutDate.value = today.toISOString().split('T')[0];
-        inputDueDate.value = defaultDue.toISOString().split('T')[0];
-
+        // アプリ状態
+        let currentUser = null;
         let allRecords = [];
+        let isDemoMode = false;
+        let unsubscribeFirestore = null;
 
-        // Googleログイン実行
+        // トースト通知表示 (alertの安全な代替)
+        window.showToast = (title, message, type = "info") => {
+            const toast = document.getElementById("toast");
+            const toastTitle = document.getElementById("toast-title");
+            const toastMsg = document.getElementById("toast-message");
+            const toastIcon = document.getElementById("toast-icon");
+
+            toastTitle.textContent = title;
+            toastMsg.textContent = message;
+
+            if (type === "error") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-400"></i>`;
+            } else if (type === "success") {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i>`;
+            } else {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-info text-indigo-400"></i>`;
+            }
+
+            toast.classList.remove("-translate-y-24", "opacity-0", "pointer-events-none");
+            toast.classList.add("translate-y-0", "opacity-100");
+
+            setTimeout(() => { hideToast(); }, 4500);
+        };
+
+        window.hideToast = () => {
+            const toast = document.getElementById("toast");
+            toast.classList.add("-translate-y-24", "opacity-0", "pointer-events-none");
+            toast.classList.remove("translate-y-0", "opacity-100");
+        };
+
+        // 確認モーダル表示 (confirmの安全な代替)
+        window.showConfirmModal = (title, message, onConfirm) => {
+            const modal = document.getElementById("confirm-modal");
+            const modalTitle = document.getElementById("confirm-modal-title");
+            const modalMsg = document.getElementById("confirm-modal-message");
+            const btnCancel = document.getElementById("confirm-modal-cancel");
+            const btnOk = document.getElementById("confirm-modal-ok");
+
+            modalTitle.textContent = title;
+            modalMsg.textContent = message;
+            modal.classList.remove("hidden");
+
+            const close = () => {
+                modal.classList.add("hidden");
+                btnOk.onclick = null;
+                btnCancel.onclick = null;
+            };
+
+            btnCancel.onclick = close;
+            btnOk.onclick = () => {
+                close();
+                onConfirm();
+            };
+        };
+
+        // 初期日付（貸出日：今日、返却日：14日後）
+        function resetDateInputs() {
+            const today = new Date();
+            const defaultDue = new Date();
+            defaultDue.setDate(today.getDate() + 14);
+
+            inputCheckoutDate.value = today.toISOString().split('T')[0];
+            inputDueDate.value = defaultDue.toISOString().split('T')[0];
+        }
+        resetDateInputs();
+
+        // Googleログイン処理
         btnGoogleLogin.addEventListener("click", async () => {
+            if (!isFirebaseAvailable) {
+                showToast("エラー", "Firebaseが初期化されていません。デモログインをお試しください。", "error");
+                return;
+            }
+
             try {
                 await signInWithPopup(auth, provider);
+                showToast("ログイン成功", "Googleアカウントでログインしました。", "success");
             } catch (error) {
                 console.error("Login failed:", error);
-                alert("ログインに失敗しました: " + error.message);
+                
+                let readableMsg = "ログイン処理に失敗しました。";
+                if (error.code === "auth/operation-not-allowed") {
+                    readableMsg = "Firebase ConsoleでGoogle認証が無効です。デモログインでテスト可能です。";
+                } else if (error.code === "auth/unauthorized-domain") {
+                    readableMsg = "このドメインは認証許可されていません。Firebaseの『承認済みドメイン』設定が必要です。";
+                } else if (error.code === "auth/popup-blocked") {
+                    readableMsg = "ポップアップがブロックされました。ブラウザの設定を解除してください。";
+                }
+
+                showToast("認証案内", readableMsg, "error");
             }
         });
 
-        // ログアウト実行
+        // テスト用 デモログイン
+        btnDemoLogin.addEventListener("click", () => {
+            isDemoMode = true;
+            currentUser = {
+                uid: "demo-user-123",
+                displayName: "図書委員 (テスト用)",
+                photoURL: "https://placehold.co/100x100/6366f1/ffffff?text=Demo"
+            };
+            
+            statusText.textContent = "デモモード";
+            updateLoginUI(currentUser);
+            loadLocalDemoData();
+            showToast("デモモード", "テストログインしました。全機能をお試しいただけます。", "info");
+        });
+
+        // ログアウト処理
         btnLogout.addEventListener("click", async () => {
+            if (isDemoMode) {
+                currentUser = null;
+                isDemoMode = false;
+                updateLoginUI(null);
+                showToast("ログアウト", "ログアウトしました。", "info");
+                return;
+            }
+
             try {
                 await signOut(auth);
+                showToast("ログアウト", "ログアウトしました。", "info");
             } catch (error) {
                 console.error("Logout failed:", error);
             }
         });
 
-        // 認証状態監視 (ログインしていないと使えない制限)
-        onAuthStateChanged(auth, (user) => {
+        // ログイン状態監視 (Firebase Auth)
+        if (isFirebaseAvailable) {
+            onAuthStateChanged(auth, (user) => {
+                if (isDemoMode) return; // デモモード優先
+
+                if (user) {
+                    currentUser = user;
+                    statusText.textContent = "Firebase接続中";
+                    updateLoginUI(user);
+                    listenToFirestore();
+                } else {
+                    currentUser = null;
+                    if (unsubscribeFirestore) unsubscribeFirestore();
+                    updateLoginUI(null);
+                }
+            });
+        }
+
+        // 画面のログイン切り替え
+        function updateLoginUI(user) {
             if (user) {
-                // ログイン成功時
                 authScreen.classList.add("hidden");
                 appScreen.classList.remove("hidden");
                 userProfile.classList.remove("hidden");
 
                 userAvatar.src = user.photoURL || 'https://placehold.co/100x100/4f46e5/ffffff?text=User';
-                userName.textContent = user.displayName || user.email || 'ユーザー';
-
-                // データリアルタイム購読開始
-                listenToFirestore();
+                userName.textContent = user.displayName || user.email || '管理者';
             } else {
-                // 未ログイン時
                 authScreen.classList.remove("hidden");
                 appScreen.classList.add("hidden");
                 userProfile.classList.add("hidden");
             }
-        });
+        }
 
         // データ登録 (5項目入力して保存)
         recordForm.addEventListener("submit", async (e) => {
@@ -412,45 +577,67 @@
             const dueDate = inputDueDate.value;
 
             if (!gradeClass || !borrowerName || !bookTitle || !checkoutDate || !dueDate) {
-                alert("すべての必須項目を入力してください。");
+                showToast("入力エラー", "すべての必須項目を入力してください。", "error");
+                return;
+            }
+
+            const newRecord = {
+                gradeClass,
+                borrowerName,
+                bookTitle,
+                checkoutDate,
+                dueDate,
+                status: "貸出中",
+                registeredBy: currentUser ? currentUser.uid : "guest",
+                createdAt: new Date().toISOString()
+            };
+
+            if (isDemoMode || !isFirebaseAvailable) {
+                // ローカル保存
+                newRecord.id = "local-" + Date.now();
+                allRecords.unshift(newRecord);
+                saveLocalDemoData();
+                renderRecords();
+                showToast("登録完了", `「${bookTitle}」の貸出記録を保存しました。`, "success");
+                
+                inputBorrowerName.value = "";
+                inputBookTitle.value = "";
+                resetDateInputs();
                 return;
             }
 
             try {
-                // Firestore コレクション参照
                 const recordsRef = collection(db, "library_records");
-                
                 await addDoc(recordsRef, {
-                    gradeClass,
-                    borrowerName,
-                    bookTitle,
-                    checkoutDate,
-                    dueDate,
-                    status: "貸出中", // 初期ステータス
-                    registeredBy: auth.currentUser.uid,
+                    ...newRecord,
                     createdAt: serverTimestamp()
                 });
 
-                // フォーム初期化
+                showToast("登録完了", `「${bookTitle}」の貸出記録を登録しました。`, "success");
+
                 inputBorrowerName.value = "";
                 inputBookTitle.value = "";
-                inputCheckoutDate.value = new Date().toISOString().split('T')[0];
-                const newDue = new Date();
-                newDue.setDate(newDue.getDate() + 14);
-                inputDueDate.value = newDue.toISOString().split('T')[0];
+                resetDateInputs();
 
             } catch (error) {
-                console.error("Error adding document: ", error);
-                alert("登録中にエラーが発生しました: " + error.message);
+                console.error("Firestore Add Error:", error);
+                
+                // フォールバック: ローカル保存に切り替え
+                newRecord.id = "local-" + Date.now();
+                allRecords.unshift(newRecord);
+                saveLocalDemoData();
+                renderRecords();
+                showToast("保存完了 (ローカル)", "Firestore権限未設定のためブラウザ内に保存されました。", "info");
             }
         });
 
         // Firestore リアルタイム取得
         function listenToFirestore() {
+            if (!db) return;
+
             const recordsRef = collection(db, "library_records");
             
-            // クエリ（メモリ側でソート処理）
-            onSnapshot(recordsRef, (snapshot) => {
+            unsubscribeFirestore = onSnapshot(recordsRef, (snapshot) => {
                 allRecords = [];
                 snapshot.forEach((docSnap) => {
                     allRecords.push({
@@ -459,35 +646,68 @@
                     });
                 });
 
-                // 日付新しい順にソート
+                // 日付降順ソート
                 allRecords.sort((a, b) => {
-                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.checkoutDate);
-                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.checkoutDate);
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.checkoutDate || 0);
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.checkoutDate || 0);
                     return dateB - dateA;
                 });
 
                 renderRecords();
             }, (error) => {
-                console.error("Firestore Listen Error:", error);
+                console.warn("Firestore Listen Error (Fallback to local):", error);
+                loadLocalDemoData();
             });
         }
 
-        // 一覧レンダリング & フィルター
+        // ローカルストレージデータの読み書き
+        function loadLocalDemoData() {
+            try {
+                const saved = localStorage.getItem("library_records_local");
+                if (saved) {
+                    allRecords = JSON.parse(saved);
+                } else {
+                    allRecords = [
+                        {
+                            id: "demo-1",
+                            gradeClass: "1年1組",
+                            borrowerName: "山田 太郎",
+                            bookTitle: "こころ (夏目漱石)",
+                            checkoutDate: new Date().toISOString().split('T')[0],
+                            dueDate: new Date(Date.now() + 14*86400000).toISOString().split('T')[0],
+                            status: "貸出中"
+                        }
+                    ];
+                }
+            } catch (e) {
+                allRecords = [];
+            }
+            renderRecords();
+        }
+
+        function saveLocalDemoData() {
+            try {
+                localStorage.setItem("library_records_local", JSON.stringify(allRecords));
+            } catch (e) {
+                console.error("LocalSave Error", e);
+            }
+        }
+
+        // 一覧レンダリング
         function renderRecords() {
             const query = searchQuery.value.toLowerCase().trim();
             const statusFilter = filterStatus.value;
 
             const filtered = allRecords.filter((rec) => {
-                const matchesText = rec.borrowerName.toLowerCase().includes(query) ||
-                                    rec.bookTitle.toLowerCase().includes(query) ||
-                                    rec.gradeClass.toLowerCase().includes(query);
+                const matchesText = (rec.borrowerName || '').toLowerCase().includes(query) ||
+                                    (rec.bookTitle || '').toLowerCase().includes(query) ||
+                                    (rec.gradeClass || '').toLowerCase().includes(query);
                 
                 const matchesStatus = statusFilter === "all" || rec.status === statusFilter;
 
                 return matchesText && matchesStatus;
             });
 
-            // 集計計算
             const todayStr = new Date().toISOString().split('T')[0];
             let checkoutCount = 0;
             let returnedCount = 0;
@@ -507,11 +727,10 @@
             statReturned.textContent = returnedCount;
             statOverdue.textContent = overdueCount;
 
-            // テーブル描画
             if (filtered.length === 0) {
                 recordsList.innerHTML = `
                     <tr>
-                        <td colspan="5" class="py-8 text-center text-slate-400">
+                        <td colspan="5" class="py-6 text-center text-slate-400">
                             該当する貸出記録が見つかりません。
                         </td>
                     </tr>
@@ -535,29 +754,29 @@
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
-                        <td class="py-3 px-3">
-                            <span class="inline-block bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs font-medium mr-1">${escapeHtml(rec.gradeClass)}</span>
-                            <span class="font-bold text-slate-800">${escapeHtml(rec.borrowerName)}</span>
+                        <td class="py-2.5 px-3">
+                            <span class="inline-block bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[11px] font-medium mr-1">${escapeHtml(rec.gradeClass || '')}</span>
+                            <span class="font-bold text-slate-800">${escapeHtml(rec.borrowerName || '')}</span>
                         </td>
-                        <td class="py-3 px-3 font-medium text-slate-700">
-                            ${escapeHtml(rec.bookTitle)}
+                        <td class="py-2.5 px-3 font-medium text-slate-700">
+                            ${escapeHtml(rec.bookTitle || '')}
                         </td>
-                        <td class="py-3 px-3 text-xs text-slate-500">
-                            <div>貸: ${rec.checkoutDate}</div>
-                            <div class="${isOverdue ? 'text-rose-600 font-bold' : ''}">返: ${rec.dueDate}</div>
+                        <td class="py-2.5 px-3 text-[11px] text-slate-500">
+                            <div>貸: ${rec.checkoutDate || ''}</div>
+                            <div class="${isOverdue ? 'text-rose-600 font-bold' : ''}">返: ${rec.dueDate || ''}</div>
                         </td>
-                        <td class="py-3 px-3">
-                            <span class="px-2 py-1 rounded-full text-xs border font-medium inline-block ${badgeClass}">
+                        <td class="py-2.5 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] border font-medium inline-block ${badgeClass}">
                                 ${badgeText}
                             </span>
                         </td>
-                        <td class="py-3 px-3 text-right space-x-1">
+                        <td class="py-2.5 px-3 text-right space-x-1">
                             ${rec.status === "貸出中" ? `
-                                <button onclick="window.toggleReturn('${rec.id}', '返却完了')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 rounded-lg transition shadow-sm">
-                                    <i class="fa-solid fa-check mr-1"></i>返却
+                                <button onclick="window.toggleReturn('${rec.id}', '返却完了')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2 py-1 rounded transition shadow-sm">
+                                    <i class="fa-solid fa-check mr-0.5"></i>返却
                                 </button>
                             ` : `
-                                <button onclick="window.toggleReturn('${rec.id}', '貸出中')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-2 py-1 rounded-lg transition">
+                                <button onclick="window.toggleReturn('${rec.id}', '貸出中')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] px-2 py-1 rounded transition">
                                     再貸出
                                 </button>
                             `}
@@ -570,7 +789,7 @@
             }).join('');
         }
 
-        // HTMLエスケープヘルパー
+        // HTML文字エスケープ
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>"']/g, function(m) {
@@ -584,29 +803,55 @@
             });
         }
 
-        // 検索＆フィルターイベント
+        // 検索＆フィルター
         searchQuery.addEventListener("input", renderRecords);
         filterStatus.addEventListener("change", renderRecords);
 
-        // ステータス切り替え（返却処理）
+        // 返却/再貸出切り替え
         window.toggleReturn = async (id, newStatus) => {
+            if (isDemoMode || id.startsWith("local-")) {
+                const rec = allRecords.find(r => r.id === id);
+                if (rec) rec.status = newStatus;
+                saveLocalDemoData();
+                renderRecords();
+                showToast("ステータス変更", `状態を「${newStatus}」に変更しました。`, "success");
+                return;
+            }
+
             try {
                 const docRef = doc(db, "library_records", id);
                 await updateDoc(docRef, { status: newStatus });
+                showToast("ステータス変更", `状態を「${newStatus}」に変更しました。`, "success");
             } catch (error) {
                 console.error("Status update error:", error);
+                showToast("更新エラー", "ステータスの更新に失敗しました。", "error");
             }
         };
 
-        // レコード削除
-        window.deleteRecord = async (id) => {
-            if (!confirm("この記録を削除してもよろしいですか？")) return;
-            try {
-                const docRef = doc(db, "library_records", id);
-                await deleteDoc(docRef);
-            } catch (error) {
-                console.error("Delete error:", error);
-            }
+        // レコード削除 (カスタムモーダル)
+        window.deleteRecord = (id) => {
+            showConfirmModal(
+                "記録の削除",
+                "この貸出記録を削除してもよろしいですか？",
+                async () => {
+                    if (isDemoMode || id.startsWith("local-")) {
+                        allRecords = allRecords.filter(r => r.id !== id);
+                        saveLocalDemoData();
+                        renderRecords();
+                        showToast("削除完了", "記録を削除しました。", "info");
+                        return;
+                    }
+
+                    try {
+                        const docRef = doc(db, "library_records", id);
+                        await deleteDoc(docRef);
+                        showToast("削除完了", "記録を削除しました。", "info");
+                    } catch (error) {
+                        console.error("Delete error:", error);
+                        showToast("削除エラー", "記録の削除に失敗しました。", "error");
+                    }
+                }
+            );
         };
     </script>
 </body>
